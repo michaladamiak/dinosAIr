@@ -20,10 +20,20 @@ body {
     background-color: rgb(255, 255, 255);
 }
 
+#play {
+    color: gray;
+    font-size: 30px;
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    cursor: pointer;
+}
+
 #reload {
     position: fixed;
     top: calc(50% + 280px);
     cursor: pointer;
+    display: none;
 }
 
 #info {
@@ -58,4 +68,8 @@ body {
     left: calc(50% - 200px);
     font-size: 100px;
     color: gray;
+}
+
+#epoch_container {
+    color: white;
 }

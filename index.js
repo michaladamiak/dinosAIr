@@ -5,6 +5,8 @@ const scoreCounter = document.getElementById("score");
 const gameOver = document.getElementById("game_over");
 const epochCounter = document.getElementById("epoch");
 const reload = document.getElementById("reload");
+const play = document.getElementById("play");
+const epochContainer = document.getElementById("epoch_container");
 
 reload.addEventListener("click", () => {
   try{
@@ -24,11 +26,12 @@ reload.addEventListener("click", () => {
 
 })
 
+
 canvas.width = 1000;
 canvas.height = 400;
 let gameSpeed = 14;
 // how often the obstacles and clouds appear 
-let objectsFrequency = 1200;
+let objectsFrequency = 1000;
 const numOfSignals = 6;
 const nHidden = 4;
 const nHidden2 = 4;
@@ -141,46 +144,7 @@ async function main() {
 }
 
 main()
-// console.log(model)
 
-// console.log(model);
-
-
-// if(tf.loadLayersModel('localstorage://my-model')){
-//     // Wczytanie modelu z LocalStorage
-//     const model = tf.loadLayersModel('localstorage://my-model');
-//     console.log('Model loaded from LocalStorage');
-//     console.log(model);
-//     // model.summary();  // Wyświetlenie podsumowania modelu
-//   } else {
-//     console.error('Error loading model from LocalStorage, creating new model');
-
-//     // nn definition 
-//     const model = tf.sequential();
-//     model.add(tf.layers.dense({
-//       units: nHidden,
-//       activation: 'elu',
-//       inputShape: [numOfSignals],
-//       kernelInitializer: 'varianceScaling'
-//     }));
-//     model.add(tf.layers.dense({
-//       units: nOutputs,
-//       activation: 'sigmoid'
-//     }));
-
-//     // compilation 
-//     const optimizer = tf.train.adam(learningRate);
-//     model.compile({
-//       optimizer: optimizer,
-//       loss: 'binaryCrossentropy'
-//     });
-// }
-
-
-// async function saveModel() {
-//   await model.save('localstorage://my-model');
-//   console.log('Model saved to LocalStorage');
-// }
 
 //loss function 
 function lossFunction(labels, logits) {
@@ -300,19 +264,48 @@ function getBest(best, start) {
   }
 }
 
-function getEpoch() {
-  if(localStorage.getItem('epoch_dino') === null){
+function getFromLocal(item) {
+  if(localStorage.getItem(item) === null){
       return 1
   } else {
-      return JSON.parse(localStorage.getItem('epoch_dino'))
+      return JSON.parse(localStorage.getItem(item))
   }
 }
 
-
-
 bestScore.innerHTML = getBest("best_dino", "0");
-epochCounter.innerHTML = getEpoch();
+epochCounter.innerHTML = getFromLocal('epoch_dino');
+let gameState = getFromLocal('game_state')
 
+
+//adjust interface based on game state
+if(gameState == 1) {
+  play.innerHTML = 'Want to play on your own?';
+  epochContainer.style.color = 'gray';
+  reload.style.display = 'flex';
+} else {
+  play.innerHTML = 'Get back to learining!';
+  epochContainer.style.color = 'white';
+  reload.style.display = 'none';
+}
+
+// change from learning to playing game state
+play.addEventListener("click", () => {
+  if(gameState == 1) {
+    gameState = 0
+    play.innerHTML = 'Get back to learining!'
+  } else {
+    gameState = 1
+    play.innerHTML = 'Want to play on your own?'
+  }
+  localStorage.removeItem('best_dino');
+  localStorage.setItem(
+    "game_state",
+    JSON.stringify(gameState)
+  )
+  location.reload()
+})
+
+// create game elements: dinosaur, obstacles, clouds...
 class Dinosaur{
   constructor() {
     this.width = 80;
@@ -474,6 +467,7 @@ function addObstacle(type){
     obstacles.push(new Obstacle(type))
 }
 const createObstacles = setInterval(() => {
+  //random obstacle
   addObstacle(Math.floor(Math.random() * 6) + 1);
 },
 objectsFrequency);
@@ -517,7 +511,7 @@ class Cloud{
   }
 
   move(){
-    this.x-=gameSpeed/2;
+    this.x-=gameSpeed/4;
   }
 }
 
@@ -528,7 +522,7 @@ function addCloud(type){
 const createClouds = setInterval(() => {
   addCloud(Math.floor(Math.random() * 2) + 1)
 },
-objectsFrequency);
+objectsFrequency*2);
 
 class Ray{
   constructor(ax, ay, length, angle){
@@ -642,32 +636,6 @@ function animate(){
   //first signal as % jump hight above ground
   signals[0] = (canvas.height-dinosaur.y-dinosaur.height)/(dinosaur.maxJump/10)
 
-    //get action from nn
-    // const [actionVal, gradientsVal] = tf.tidy(() => {
-    //   const logits = model.predict(tf.tensor2d(signals.flat(), [1, numOfSignals]));
-    //   const actionProb = tf.concat([logits, tf.ones([1, 1]).sub (logits)], 1);
-    //   const action = tf.multinomial(tf.log(actionProb), 1);
-    //   // const gradients = optimizer.computeGradients(() => model.loss([tf.tensor2d([1 - action], [1,1]), logits]));
-    //   const actionTensor = tf.tensor2d([action.arraySync()[0][0]], [1, 1]);
-
-    //   const loss = tf.variableGrads(() => {
-    //     const logits = model.predict(tf.tensor2d([signals], [1, numOfSignals]));
-    //     const actionProb = tf.concat([logits, tf.ones([1, 1]).sub(logits)], 1);
-    //     const actionTensor = tf.tensor2d([action.arraySync()[0][0]], [1, 1]);
-    //     return lossFunction(tf.tensor2d([1 - actionTensor.arraySync()[0][0]], [1, 1]), logits);
-    //   });
-    //   return [action.arraySync()[0][0], loss.grads];
-    // });
-
-
-    // const [action, gradient] = tf.tidy(() =>{
-    //   const input = tf.tensor2d(signals, [1, numOfSignals]);
-    //   const action = model.predict(input);
-    //   const gradient = tf.grads(() => model.predict(input))(input);
-    //   return[action,gradient]
-    // })
-
-    // console.log(actionVal, gradientsVal)
 
     let actions = []
     const grads = tf.variableGrads(() => {
@@ -700,8 +668,10 @@ function animate(){
 
 
 
-    //move dinosaur based on nn prediction
-    dinosaur.spaceDown = actions[0]; // turn on NN
+    //if gameState is 1 - move dinosaur based on nn prediction
+    if(gameState == 1) {
+      dinosaur.spaceDown = actions[0];
+    }
     dinosaur.move();
 
     //move points and remove when passed
@@ -756,17 +726,6 @@ function animate(){
       if(obstacle.x+obstacle.width>dinosaur.x && obstacle.x<dinosaur.x+dinosaur.width && obstacle.y<dinosaur.y+dinosaur.height && obstacle.y+obstacle.height>dinosaur.y) {
         // clearInterval(createObstacles);
         dinosaur.alive = false;
-        // dinosaur.color = "gray";
-        // clearInterval(dinosaur.photoInterval);
-        // gameOver.style.display = "flex";
-        // setTimeout(() => {
-        //   document.onkeydown=(e) => {
-        //     if (e.code === "Space") {
-        //       location.reload();
-        //     }
-        //   }
-        // }, 1000)
-
       }
       // if(dinosaur.alive){
         obstacle.move();
@@ -803,12 +762,6 @@ function animate(){
 
   } 
 
-
-  // const result = env.step(actionVal); // Placeholder dla kroku  środowiska
-  // obs = result.obs;
-  // const reward = result.reward;
-  // const done = result.done;
-
   if(dinosaur.alive) {
     if(dinosaur.y+dinosaur.height===canvas.height) {
       reward += 1
@@ -840,71 +793,47 @@ function animate(){
     }, 1000);
 
     const newEpoch = Number(epochCounter.innerHTML)+1 
-    if(newEpoch > getEpoch()) {
+    if(newEpoch > getFromLocal('epoch_dino')) {
       localStorage.setItem(
         "epoch_dino",
         JSON.stringify(newEpoch)
       )
     }
 
-    reward += -50;
-    currentRewards.push(reward);
-    currentGradients.push(grads);
+    // if game over and gameState is 1 (AI learning) compute gradients and go to new epoch
+    if(gameState == 1) {
+      console.log('tutaj', allRewards)
+      reward += -50;
+      currentRewards.push(reward);
+      currentGradients.push(grads);
 
-    //saving rewards and gradients for next iteration
-    allRewards.push(currentRewards);
-    allGradients.push(currentGradients);
-    // saveArrayToLocalStorage(allRewards, 'allRewards');
-    // saveArrayToLocalStorage(allGradients, 'allGradients');
-    //adjusting weights
-    const normalizedRewards = discountAndNormalizeRewards(allRewards, discountRate);
-    // applyGradients(normalizedRewards, allGradients);
+      //saving rewards and gradients for next iteration
+      allRewards.push(currentRewards);
+      allGradients.push(currentGradients);
+      // saveArrayToLocalStorage(allRewards, 'allRewards');
+      // saveArrayToLocalStorage(allGradients, 'allGradients');
+      //adjusting weights
+      const normalizedRewards = discountAndNormalizeRewards(allRewards, discountRate);
+      // applyGradients(normalizedRewards, allGradients);
 
-    // console.log(allGradients)
-    // console.log(allRewards)
-    // console.log(normalizedRewards)
+      // console.log(allGradients)
+      // console.log(allRewards)
+      // console.log(normalizedRewards)
 
-    // console.log(scaleAndAverageTensors(allGradients,normalizedRewards).grads);
-    // optimizer.applyGradients(scaleAndAverageTensors(allGradients,normalizedRewards).grads);
+      // console.log(scaleAndAverageTensors(allGradients,normalizedRewards).grads);
+      // optimizer.applyGradients(scaleAndAverageTensors(allGradients,normalizedRewards).grads);
 
 
-    optimizer.applyGradients(scaleAndAverageGrads(allGradients, normalizedRewards));
-    for (let i = 0; i < model.getWeights().length; i++) {
-      console.log(model.getWeights()[i].dataSync());
+      optimizer.applyGradients(scaleAndAverageGrads(allGradients, normalizedRewards));
+      for (let i = 0; i < model.getWeights().length; i++) {
+        console.log(model.getWeights()[i].dataSync());
+      }
+      saveModel(model);
+      location.reload();
     }
-    saveModel(model);
-    location.reload();
-
-
-    // tf.tidy(() => {
-    //   const meanGradients = allGradients[0].map((_, i) => {
-    //     return tf.mean(tf.stack(allGradients.map((gradients, j) => {
-    //       const normalizedReward = tf.scalar(normalizedRewards[j]);
-    //       const gradientValues = gradients[i];
-    //       return gradientValues.mul(normalizedReward);
-    //     })), 0);
-    //   });
-    
-    //   // Stosowanie gradientów do wag sieci
-    //   const gradMap = {
-    //     'dense/kernel': meanGradients[0],
-    //     'dense/bias': meanGradients[1],
-    //     'dense_1/kernel': meanGradients[2],
-    //     'dense_1/bias': meanGradients[3]
-    //   };
-    
-    //   optimizer.applyGradients(gradMap);
-    // });
-    
   }
 
 }
-
-// saveArrayToLocalStorage(allRewards, 'allRewards');
-// saveArrayToLocalStorage(allGradients, 'allGradients');
-// animate()
-// loadModel();
-
 
 
 
